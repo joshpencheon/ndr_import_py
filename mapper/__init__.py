@@ -28,6 +28,69 @@ def isblank(obj):
            (isinstance(obj, str) and obj.isspace()) or \
            (hasattr(obj, 'length') and obj.length == 0)
 
+def clean(string, what):
+    """
+    port of ndr_support's string cleaning behaviour.
+    Assumes a "symbol" for the value of `what`.
+    """
+    if what == ':sex':
+        if re.match('^M|1', string, re.I):
+            return '1'
+        if re.match('^F|2', string, re.I):
+            return '2'
+        return '0'
+
+    if what == ':name':
+        substitutions = {
+            '\.': '',
+            ',|;': ' ',
+            '\s{2,}': ' ',
+            '`': '\''
+        }
+
+        string = string.upper()
+
+        for pattern, replacement in substitutions.items():
+            string = re.sub(pattern, replacement, string)
+
+        return string.strip()
+
+    if what == ':nhsnumber':
+        return re.sub('[^0-9]', '', string)[0:10]
+
+    if what == ':ethniccategory':
+        return {
+            '0': '0',
+            '1': 'M',
+            '2': 'N',
+            '3': 'H',
+            '4': 'J',
+            '5': 'K',
+            '6': 'R',
+            '7': '8',
+            '&': 'X',
+            ' ': 'X',
+            '99': 'X'
+        }.get(string, string.upper())
+
+    if what == ':upcase':
+        return string.upper()
+
+    if what == ':code':
+        codes = []
+
+        for code in re.split(' |,|;', string):
+           code = re.sub('\.', '', code)
+
+           if isblank(code):
+               continue
+
+           codes.append(code)
+
+        return ' '.join(codes)
+
+    raise Exception('unknown cleaner: %s!' % what)
+
 def decode_raw_value(raw_value, encoding):
     """
     attempts to interpret `raw_value` from `encoding`
@@ -84,9 +147,13 @@ def mapped_value(original_value, field_mapping):
             return None
 
     if 'clean' in field_mapping:
+        cleaner = field_mapping['clean']
+        if isinstance(cleaner, list):
+            for cln in cleaner:
+                original_value = clean(original_value, cln)
+        else:
+            original_value = clean(original_value, cleaner)
         return original_value
-        # TODO: implement clean
-        raise Exception('str#clean is not implemented!')
 
     if 'map' in field_mapping:
         return field_mapping['map'].get(original_value, original_value)

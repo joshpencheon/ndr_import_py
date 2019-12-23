@@ -322,22 +322,20 @@ class TestMapper(unittest.TestCase):
     def test_map_should_not_alter_value(self):
         self.assertEqual('2.1', replace_before_mapping('2.1', replace_mapping))
 
-    @unittest.skip('not implemented yet')
     def test_map_should_clean_name(self):
         self.assertEqual('ANNABELLE SMITH', mapped_value('anna.belle,smith', clean_name_mapping))
 
-    @unittest.skip('not implemented yet')
     def test_map_should_clean_ethnic_category(self):
         self.assertEqual('M', mapped_value('1', clean_ethniccategory_mapping))
         self.assertEqual('X', mapped_value('99', clean_ethniccategory_mapping))
         self.assertEqual('A', mapped_value('A', clean_ethniccategory_mapping))
         self.assertEqual('INVALID', mapped_value('InVaLiD', clean_ethniccategory_mapping))
 
-    @unittest.skip('not implemented yet')
+    @unittest.skip('icd cleaning not implemented yet')
     def test_map_should_clean_icd_code(self):
         self.assertEqual('C343 R932 Z515', mapped_value('C34.3,R93.2,Z51.5', clean_icd_mapping))
 
-    @unittest.skip('not implemented yet')
+    @unittest.skip('opcs cleaning not implemented yet')
     def test_map_should_clean_opcs_code(self):
         self.assertEqual('U212 Y973', mapped_value('U212,Y973,X1', clean_opcs_mapping))
         self.assertEqual('', mapped_value('98', clean_opcs_mapping))
@@ -346,7 +344,6 @@ class TestMapper(unittest.TestCase):
         self.assertEqual('ABCD', mapped_value('AbcD', clean_opcs_mapping))
         self.assertEqual('1234', mapped_value('1234', clean_opcs_mapping))
 
-    @unittest.skip('not implemented yet')
     def test_map_should_use_multiple_cleans(self):
         self.assertEqual('U3 Y2 X1', mapped_value('u3,y2,x1', clean_code_and_upcase_mapping))
 
@@ -361,7 +358,7 @@ class TestMapper(unittest.TestCase):
 
         self.assertEqual("field_one can't be blank", str(cm.exception))
 
-    @unittest.skip('not implemented yet')
+    @unittest.skip('daysafter not implemented yet')
     def test_should_return_correct_date_format_for_date_fields_with_daysafter(self):
         self.assertEqual(datetime(2012, 5, 18), mapped_value(2, daysafter_mapping))
         self.assertEqual(datetime(2012, 5, 18), mapped_value('2', daysafter_mapping))
@@ -383,7 +380,7 @@ class TestMapper(unittest.TestCase):
         self.assertEqual('1 test road, testtown', line_hash['address'])
         self.assertEqual('1 test road, testtown', line_hash['rawtext']['patient address'])
 
-    @unittest.skip('not implemented yet')
+    @unittest.skip('opcs cleaning not implemented yet')
     def test_line_mapping_should_create_valid_hash_with_blank_cleaned_value(self):
         self.assertEqual('', mapped_value('98', clean_opcs_mapping))
         line_hash = mapped_line(['98'], simple_mapping_with_clean_opcs)
@@ -499,7 +496,6 @@ class TestMapper(unittest.TestCase):
         self.assertEqual('Exists', line_hash['columnone'])
         self.assertEqual('Exists', line_hash['columntwo'])
 
-    @unittest.skip('not implemented yet')
     def test_should_create_equal_hashes_with_standard_mapping(self):
         line_hash_without = mapped_line(
           ['Smith', 'John F', 'male', '01234567'], standard_mapping_without
@@ -509,13 +505,11 @@ class TestMapper(unittest.TestCase):
         )
         self.assertEqual(line_hash_without, line_hash_with)
 
-    @unittest.skip('not implemented yet')
     def test_should_merge_standard_mapping_and_normal_mapping(self):
         line_hash = mapped_line(['Smith'], standard_mapping_merge)
         self.assertEqual('SMITH', line_hash['surname'])
         self.assertEqual('Smith', line_hash['surname2'])
 
-    @unittest.skip('not implemented yet')
     def test_should_merge_standard_mapping_in_correct_order(self):
         line_hash = mapped_line(['Smith'], standard_mapping_column)
         self.assertEqual('Smith', line_hash['rawtext']['overriding_column_name'])
