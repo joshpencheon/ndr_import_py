@@ -221,22 +221,23 @@ def standard_mapping(mapping_name, column_mapping):
 
     return result
 
-MAPPING_YAML = """
-- standard_mapping: forenames
-- column: hospital
-  mappings:
-  - field: hospital
-    replace:
-    - ? 'Addenbrookes'
-      : 'RGT01'
-"""
+if __name__ == "__main__":
+    MAPPING_YAML = """
+    - standard_mapping: forenames
+    - column: hospital
+      mappings:
+      - field: hospital
+        replace:
+        - ? 'Addenbrookes'
+          : 'RGT01'
+    """
 
-MAPPING = yaml.load(MAPPING_YAML, Loader=yaml.FullLoader)
+    MAPPING = yaml.load(MAPPING_YAML, Loader=yaml.FullLoader)
 
-LINES = [
-    [' bob ', 'Addenbrookes Hospital'],
-    ['gob', 'Peterborough Hospital']
-]
+    LINES = [
+        [' bob ', 'Addenbrookes Hospital'],
+        ['gob', 'Peterborough Hospital']
+    ]
 
-for l in LINES:
-    print(mapped_line(l, MAPPING))
+    for l in LINES:
+        print(mapped_line(l, MAPPING))
