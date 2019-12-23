@@ -8,6 +8,7 @@ Primarily defines:
 Known issues:
 * Doesn't support serialised Ruby Regexps - needs native pattern instead.
 * Doesn't support legacy date formats (e.g. yyyy/mm/dd - needs %Y/%m/%d)
+* Not all "clean" directives are supported.
 """
 
 import base64
@@ -189,10 +190,42 @@ def presence_validation_on(field, value):
     if isblank(value):
         raise Exception("%s can't be blank" % field)
 
+def validate_line_mappings(line_mappings):
+    """
+    raises if the supplied mappings are non-sensical:
+        * checks all standard mappings exist
+        * checks all priorities are unique within a field
+    """
+    priorities = {}
+
+    for column_mapping in line_mappings:
+        if column_mapping.get('standard_mapping'):
+            name = column_mapping['standard_mapping']
+
+            if not standard_mapping(name, column_mapping):
+                raise Exception("Standard mapping '%s' does not exist!" % name)
+
+        if 'mappings' not in column_mapping:
+            continue
+        
+        for field_mapping in column_mapping['mappings']:
+            field = field_mapping['field']
+            priority = field_mapping.get('priority')
+
+            if priority:
+                if priorities.get(field) == priority:
+                    raise Exception("Field '%s' cannot have duplicate priorities!" % field)
+
+                priorities[field] = priority
+            else:
+                priorities[field] = 1
+
 def mapped_line(line, line_mappings):
     """
     applies mapping to the given line.
     """
+    validate_line_mappings(line_mappings)
+
     rawtext = {}
     data = {}
 

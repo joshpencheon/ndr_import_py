@@ -515,15 +515,17 @@ class TestMapper(unittest.TestCase):
         self.assertEqual('Smith', line_hash['rawtext']['overriding_column_name'])
         self.assertNotIn('standard_mapping_column_name', line_hash['rawtext'])
 
-    @unittest.skip('validate_line_mappings not implemented yet')
     def test_should_raise_on_duplicate_priority(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception) as cm:
             mapped_line(['A', 'B'], invalid_priorities)
 
-    @unittest.skip('validate_line_mappings not implemented yet')
-    def test_should_raise_on_duplicate_priority(self):
-        with self.assertRaises(Exception):
+        self.assertEqual("Field 'columntwo' cannot have duplicate priorities!", str(cm.exception))
+
+    def test_should_raise_on_invalid_standard_mapping(self):
+        with self.assertRaises(Exception) as cm:
             mapped_line(['A'], invalid_standard_mapping)
+
+        self.assertEqual("Standard mapping 'surnames' does not exist!", str(cm.exception))
 
     def test_should_not_modify_the_standard_mapping_when_using_it(self):
         standard_mappings = copy.deepcopy(STANDARD_MAPPINGS)
