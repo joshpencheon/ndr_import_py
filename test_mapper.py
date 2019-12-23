@@ -545,85 +545,41 @@ class TestMapper(unittest.TestCase):
 
         self.assertEqual(standard_mappings, STANDARD_MAPPINGS)
 
-  # test 'should not modify the standard mapping when using it' do
-  #   # Take a deep copy of the original, using YAML serialization:
-  #   standard_mappings = YAML.load(NdrImport::StandardMappings.mappings.to_yaml)
+    def test_should_join_blank_first_field_with_compacting(self):
+        line_hash = mapped_line(['', 'CB3 0DS'], joined_mapping_blank_start)
+        self.assertEqual('CB3 0DS', line_hash['address'])
 
-  #   TestMapper.new.mapped_line(['Smith'], YAML.load(<<-YML.strip_heredoc))
-  #     - column: surname
-  #       standard_mapping: surname
-  #       mappings:
-  #       - field: overwrite_surname
-  #   YML
+    def test_should_join_blank_first_field_without_compacting(self):
+        line_hash = mapped_line(['', 'CB3 0DS'], joined_mapping_blank_start_uncompacted)
+        self.assertEqual(',CB3 0DS', line_hash['address'])
 
-  #   assert_equal standard_mappings, NdrImport::StandardMappings.mappings
-  # end
+    @unittest.skip('legacy date formats using mm/dd etc rather than %m/%d are not supported')
+    def test_line_mapping_should_map_date_formats_correctly(self):
+        real_date = datetime(1927, 7, 6)
+        incomings = ['06/07/1927',  '19270706',     '07/06/1927',   '06/07/27',  '06/JUL/27']
+        columns   = ['dateofbirth', 'receiveddate', 'americandate', 'shortdate', 'funkydate']
+        line_hash = mapped_line(incomings, date_mapping)
 
-  # test 'should join blank first field with compacting' do
-  #   line_hash = TestMapper.new.mapped_line(['', 'CB3 0DS'], joined_mapping_blank_start)
-  #   assert_equal 'CB3 0DS', line_hash['address']
-  # end
+        print(line_hash)
+        for column_name in columns:
+          self.assertEqual(real_date, line_hash[column_name])
 
-  # test 'should join blank first field without compacting' do
-  #   line_hash = TestMapper.new.mapped_line(['', 'CB3 0DS'], joined_mapping_blank_start_uncompacted)
-  #   assert_equal ',CB3 0DS', line_hash['address']
-  # end
+    def test_should_ignore_columns_marked_do_not_capture(self):
+        line_hash = mapped_line(['rubbish'], do_not_capture_column)
+        self.assertNotIn('ignore_me', line_hash['rawtext'])
 
-  # test 'line mapping should map date formats correctly' do
-  #   real_date = Date.new(1927, 7, 6)
-  #   incomings = %w( 06/07/1927  19270706     07/06/1927   06/07/27  06/JUL/27 )
-  #   columns   = %w( dateofbirth receiveddate americandate shortdate funkydate )
-  #   line_hash = TestMapper.new.mapped_line(incomings, date_mapping)
 
-  #   columns.each do |column_name|
-  #     assert_equal real_date, line_hash[column_name].to_date
-  #   end
-  # end
+    @unittest.skip('MS Word decoding has not been implemented')
+    def test_should_decode_base64_encoded_word_document(self):
+        pass
 
-  # test 'should ignore columns marked do not capture' do
-  #   line_hash = TestMapper.new.mapped_line(['rubbish'], do_not_capture_column)
-  #   refute line_hash[:rawtext].include?('ignore_me')
-  # end
+    @unittest.skip('MS Word decoding has not been implemented')
+    def test_should_decode_base64_encoded_docx_document(self):
+        pass
 
-  # test 'should decode base64 encoded word document' do
-  #   test_file = @permanent_test_files.join('hello_world.doc')
-  #   encoded_content = Base64.encode64(File.binread(test_file))
-  #   line_hash = TestMapper.new.mapped_line([encoded_content], base64_mapping)
-  #   assert_equal 'Hello world, this is a word document', line_hash[:rawtext]['base64']
-  # end
+    def test_should_raise_unknown_encoding_exception(self):
+        with self.assertRaises(Exception):
+            mapped_line(['A'], invalid_decode_mapping)
 
-  # test 'should decode base64 encoded docx document' do
-  #   test_file = @permanent_test_files.join('hello_world.docx')
-  #   encoded_content = Base64.encode64(File.binread(test_file))
-  #   line_hash = TestMapper.new.mapped_line([encoded_content], base64_mapping)
-  #   expected_content = "Hello world, this is a modern word document\n" \
-  #                      "With more than one line of text\nThree in fact"
-
-  #   assert_equal expected_content, line_hash[:rawtext]['base64']
-  # end
-
-  # test 'should decode word.doc' do
-  #   test_file = @permanent_test_files.join('hello_world.doc')
-  #   file_content = File.binread(test_file)
-  #   text_content = TestMapper.new.send(:decode_raw_value, file_content, :word_doc)
-  #   assert_equal 'Hello world, this is a word document', text_content
-  # end
-
-  # test 'should read word.doc stream' do
-  #   test_file = @permanent_test_files.join('hello_world.doc')
-  #   file_content = TestMapper.new.send(:read_word_stream, File.open(test_file, 'r'))
-  #   assert_equal 'Hello world, this is a word document', file_content
-  # end
-
-  # test 'should handle blank values when attempting to decode_raw_value' do
-  #   text_content = TestMapper.new.send(:decode_raw_value, '', :word_doc)
-  #   assert_equal '', text_content
-  # end
-
-  # test 'should raise unknown encoding exception' do
-  #   assert_raise(RuntimeError) do
-  #     TestMapper.new.mapped_line(['A'], invalid_decode_mapping)
-  #   end
-  # end
 if __name__ == '__main__':
     unittest.main()

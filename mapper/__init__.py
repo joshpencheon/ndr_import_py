@@ -189,7 +189,7 @@ def mapped_line(line, line_mappings):
             if field_data['compact']:
                 values = list(filter(None, values))
 
-            attributes[field] = field_data['join'].join(values)
+            attributes[field] = field_data['join'].join(map(lambda v: v or '', values))
         else:
             attributes[field] = next((v for v in values), None)
 
