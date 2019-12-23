@@ -3,6 +3,8 @@ if sys.version_info[0] < 3:
     raise SystemExit("Use Python 3 (or higher) only")
 
 import base64
+import copy
+from datetime import datetime
 import re
 import yaml
 
@@ -40,7 +42,26 @@ def apply_replaces(value, replaces):
         return value
 
 def mapped_value(original_value, field_mapping):
-    return original_value
+    if 'format' in field_mapping:
+        if isblank(original_value): return None
+        return datetime.strptime(original_value, field_mapping['format'])
+    elif 'clean' in field_mapping:
+        # TODO: implement clean
+        raise 'str#clean is not implemented!'
+    elif 'map' in field_mapping:
+        return field_mapping['map'].get(original_value, original_value)
+    elif 'match' in field_mapping:
+        match = re.search(field_mapping['match'], original_value)
+        return match and match.group(1)
+    elif 'daysafter' in field_mapping:
+        # TODO: implement daysafter
+        raise 'daysafter is not implemented!'
+    elif isblank(original_value):
+        return None
+    elif isinstance(original_value, str):
+        return original_value.strip()
+    else:
+        return original_value
 
 def apply_validations_on(field, value, validations):
     if validations['presence']: presence_validation_on(field, value)
@@ -58,7 +79,8 @@ def mapped_line(line, line_mappings):
 
         if column_mapping.get('do_not_capture'): continue
 
-        # TODO: standard mapping
+        if 'standard_mapping' in column_mapping:
+          column_mapping = standard_mapping(column_mapping['standard_mapping'], column_mapping)
 
         rawtext_column_name = (column_mapping.get('rawtext_name') or column_mapping.get('column')).lower()
 
@@ -116,10 +138,34 @@ def mapped_line(line, line_mappings):
 
     return attributes
 
-mapping_yaml = """
-- column: consultantcode
+standard_mappings_yaml = """
+forenames:
+  column: forenames
+  rawtext_name: forenames
   mappings:
-  - field: consultantcode
+  - field: forenames
+#    clean: :name
+"""
+
+standard_mappings = yaml.load(standard_mappings_yaml, Loader=yaml.FullLoader)
+
+def standard_mapping(mapping_name, column_mapping):
+    mapping = standard_mappings.get(mapping_name)
+    if not mapping: return None
+
+    result = copy.copy(mapping)
+
+    for key, value in column_mapping.items():
+        # "mappings" append, everything else replaces:
+        if key == 'mappings':
+            result[key] = result.get(key, []) + [value]
+        else:
+            result[key] = value
+
+    return result
+
+mapping_yaml = """
+- standard_mapping: forenames
 - column: hospital
   mappings:
   - field: hospital
@@ -131,7 +177,7 @@ mapping_yaml = """
 mapping = yaml.load(mapping_yaml, Loader=yaml.FullLoader)
 
 lines = [
-    ['bob', 'Addenbrookes Hospital'],
+    [' bob ', 'Addenbrookes Hospital'],
     ['gob', 'Peterborough Hospital']
 ]
 
