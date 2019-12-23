@@ -16,11 +16,13 @@ import yaml
 if sys.version_info[0] < 3:
     raise SystemExit('Use Python 3 (or higher) only')
 
-def isblank(string):
+def isblank(obj):
     """
-    port of Ruby's String#blank?
+    port of Ruby's Object#blank?
     """
-    return not(string) or string.isspace()
+    return not(obj) or \
+           (isinstance(obj, str) and obj.isspace()) or \
+           (hasattr(obj, 'length') and obj.length == 0)
 
 def decode_raw_value(raw_value, encoding):
     """
@@ -32,7 +34,7 @@ def decode_raw_value(raw_value, encoding):
     if encoding == 'base64':
         return base64.b64decode(raw_value)
 
-    raise "encoding %s is not implemented!" % encoding
+    raise Exception("encoding %s is not implemented!" % encoding)
 
 def replace_before_mapping(original_value, field_mapping):
     """
@@ -57,7 +59,7 @@ def apply_replaces(value, replaces):
     applies each replacement to the given value.
     """
     if isinstance(value, list):
-        return map(lambda v: apply_replaces(v, replaces), value)
+        return list(map(lambda v: apply_replaces(v, replaces), value))
 
     for pattern, replacement in replaces.items():
         value = re.sub(pattern, replacement, value)
@@ -78,8 +80,9 @@ def mapped_value(original_value, field_mapping):
             return None
 
     if 'clean' in field_mapping:
+        return original_value
         # TODO: implement clean
-        raise 'str#clean is not implemented!'
+        raise Exception('str#clean is not implemented!')
 
     if 'map' in field_mapping:
         return field_mapping['map'].get(original_value, original_value)
@@ -90,7 +93,7 @@ def mapped_value(original_value, field_mapping):
 
     if 'daysafter' in field_mapping:
         # TODO: implement daysafter
-        raise 'daysafter is not implemented!'
+        raise Exception('daysafter is not implemented!')
 
     if isblank(original_value):
         return None
@@ -113,7 +116,7 @@ def presence_validation_on(field, value):
     raises if the supplied value is blank.
     """
     if isblank(value):
-        raise "blank field: %s" % field
+        raise Exception("%s can't be blank" % field)
 
 def mapped_line(line, line_mappings):
     """
@@ -125,7 +128,7 @@ def mapped_line(line, line_mappings):
     for col, raw_value in enumerate(line):
         column_mapping = line_mappings[col]
         if not column_mapping:
-            raise 'Wrong number of columns'
+            raise Exception('Wrong number of columns')
 
         if column_mapping.get('do_not_capture'):
             continue
@@ -146,7 +149,6 @@ def mapped_line(line, line_mappings):
 
             original_value = replace_before_mapping(original_value, field_mapping)
             value = mapped_value(original_value, field_mapping)
-
             validations = field_mapping.get('validates')
             if validations:
                 apply_validations_on(field_mapping['field'], value, validations)
@@ -157,7 +159,7 @@ def mapped_line(line, line_mappings):
             field = field_mapping.get('field')
 
             data[field] = data.get(field, {})
-            data[field]['values'] = data[field].get('values', [])
+            data[field]['values'] = data[field].get('values', {})
             if 'compact' not in data[field]:
                 data[field]['compact'] = True
 
@@ -171,12 +173,14 @@ def mapped_line(line, line_mappings):
             elif field_mapping.get('priority'):
                 data[field]['values'][field_mapping['priority']] = value
             else:
-                data[field]['values'].insert(0, value)
+                data[field]['values'][0] = value
 
     attributes = {}
 
     for field, field_data in data.items():
-        values = field_data['values']
+        # Stored in a dict by "index", retrieve sorted actual values:
+        value_dict = field_data['values']
+        values = list(map(lambda k: value_dict[k], sorted(value_dict)))
 
         if 'join' in field_data:
             # Map "blank" values to None:
@@ -187,19 +191,51 @@ def mapped_line(line, line_mappings):
 
             attributes[field] = field_data['join'].join(values)
         else:
-            attributes[field] = next((v for v in field_data['values']), None)
+            attributes[field] = next((v for v in values), None)
 
     attributes['rawtext'] = rawtext # Assign last
 
     return attributes
 
 STANDARD_MAPPINGS_YAML = """
+surname:
+  column: surname
+  rawtext_name: surname
+  mappings:
+  - field: surname
+    clean: :name
+previoussurname:
+  column: previoussurname
+  rawtext_name: previoussurname
+  mappings:
+  - field: previoussurname
+    clean: :name
 forenames:
   column: forenames
   rawtext_name: forenames
   mappings:
   - field: forenames
     clean: :name
+sex:
+  column: sex
+  rawtext_name: sex
+  mappings:
+  - field: sex
+    clean: :sex
+nhsnumber:
+  column: nhsnumber
+  rawtext_name: nhsnumber
+  mappings:
+  - field: nhsnumber
+    clean: :nhsnumber
+postcode:
+  column: postcode
+  rawtext_name: postcode
+  mappings:
+  - field: postcode
+    clean: :postcode
+test:
+  column: standard_mapping_column_name
 """
 
 STANDARD_MAPPINGS = yaml.load(STANDARD_MAPPINGS_YAML, Loader=yaml.FullLoader)
@@ -218,7 +254,7 @@ def standard_mapping(mapping_name, column_mapping):
     for key, value in column_mapping.items():
         # "mappings" append, everything else replaces:
         if key == 'mappings':
-            result[key] = result.get(key, []) + [value]
+            result[key] = result.get(key, []) + value
         else:
             result[key] = value
 
