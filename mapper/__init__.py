@@ -3,7 +3,11 @@ A Python port of ndr_import's mapper module.
 
 Primarily defines:
 
-mapped_line(line, line_mappings)
+    mapped_line(line, line_mappings)
+
+Known issues:
+* Doesn't support serialised Ruby Regexps - needs native pattern instead.
+* Doesn't support legacy date formats (e.g. yyyy/mm/dd - needs %Y/%m/%d)
 """
 
 import base64

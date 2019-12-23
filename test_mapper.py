@@ -9,7 +9,6 @@ from mapper import mapped_line, mapped_value, replace_before_mapping, STANDARD_M
 def yaml_load(string):
     return yaml.load(textwrap.dedent(string), Loader=yaml.FullLoader)
 
-# TODO: support dd/mm/yyyy / yyyymmdd
 format_mapping = { 'format': '%d/%m/%Y' }
 format_mapping_yyyymmdd = { 'format': '%Y%m%d' }
 clean_name_mapping = { 'clean': ':name' }
