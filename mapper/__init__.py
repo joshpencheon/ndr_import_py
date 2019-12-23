@@ -72,7 +72,10 @@ def mapped_value(original_value, field_mapping):
         if isblank(original_value):
             return None
 
-        return datetime.strptime(original_value, field_mapping['format'])
+        try:
+            return datetime.strptime(original_value, field_mapping['format'])
+        except ValueError:
+            return None
 
     if 'clean' in field_mapping:
         # TODO: implement clean
@@ -196,7 +199,7 @@ forenames:
   rawtext_name: forenames
   mappings:
   - field: forenames
-#    clean: :name
+    clean: :name
 """
 
 STANDARD_MAPPINGS = yaml.load(STANDARD_MAPPINGS_YAML, Loader=yaml.FullLoader)
