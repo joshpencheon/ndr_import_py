@@ -1,26 +1,46 @@
-import sys
-if sys.version_info[0] < 3:
-    raise SystemExit("Use Python 3 (or higher) only")
+"""
+A Python port of ndr_import's mapper module.
+
+Primarily defines:
+
+mapped_line(line, line_mappings)
+"""
 
 import base64
 import copy
 from datetime import datetime
 import re
+import sys
 import yaml
 
+if sys.version_info[0] < 3:
+    raise SystemExit('Use Python 3 (or higher) only')
+
 def isblank(string):
+    """
+    port of Ruby's String#blank?
+    """
     return not(string) or string.isspace()
 
 def decode_raw_value(raw_value, encoding):
-    if isblank(raw_value): return raw_value
+    """
+    attempts to interpret `raw_value` from `encoding`
+    """
+    if isblank(raw_value):
+        return raw_value
 
-    if 'base64' == encoding:
-        return base64.decodestring(raw_value)
-    else:
-        raise "encoding %s is not implemented!" % encoding
+    if encoding == 'base64':
+        return base64.b64decode(raw_value)
+
+    raise "encoding %s is not implemented!" % encoding
 
 def replace_before_mapping(original_value, field_mapping):
-    if not('replace' in field_mapping and original_value): return original_value
+    """
+    iterates over any replaces in the `field_mapping`, and
+    applies them to any `original_value`(s).
+    """
+    if not('replace' in field_mapping and original_value):
+        return original_value
 
     replaces = field_mapping['replace']
 
@@ -33,56 +53,85 @@ def replace_before_mapping(original_value, field_mapping):
     return original_value
 
 def apply_replaces(value, replaces):
+    """
+    applies each replacement to the given value.
+    """
     if isinstance(value, list):
         return map(lambda v: apply_replaces(v, replaces), value)
-    else:
-        for pattern, replacement in replaces.items():
-            value = re.sub(pattern, replacement, value)
 
-        return value
+    for pattern, replacement in replaces.items():
+        value = re.sub(pattern, replacement, value)
+
+    return value
 
 def mapped_value(original_value, field_mapping):
+    """
+    applies the first mapping to the given original_value.
+    """
     if 'format' in field_mapping:
-        if isblank(original_value): return None
+        if isblank(original_value):
+            return None
+
         return datetime.strptime(original_value, field_mapping['format'])
-    elif 'clean' in field_mapping:
+
+    if 'clean' in field_mapping:
         # TODO: implement clean
         raise 'str#clean is not implemented!'
-    elif 'map' in field_mapping:
+
+    if 'map' in field_mapping:
         return field_mapping['map'].get(original_value, original_value)
-    elif 'match' in field_mapping:
+
+    if 'match' in field_mapping:
         match = re.search(field_mapping['match'], original_value)
         return match and match.group(1)
-    elif 'daysafter' in field_mapping:
+
+    if 'daysafter' in field_mapping:
         # TODO: implement daysafter
         raise 'daysafter is not implemented!'
-    elif isblank(original_value):
+
+    if isblank(original_value):
         return None
-    elif isinstance(original_value, str):
+
+    if isinstance(original_value, str):
         return original_value.strip()
-    else:
-        return original_value
+
+    return original_value
 
 def apply_validations_on(field, value, validations):
-    if validations['presence']: presence_validation_on(field, value)
+    """
+    raises if any of the requested validations do not
+    pass against the given field's value.
+    """
+    if validations['presence']:
+        presence_validation_on(field, value)
 
 def presence_validation_on(field, value):
-    if isblank(value): raise "missing field: %s" % field
+    """
+    raises if the supplied value is blank.
+    """
+    if isblank(value):
+        raise "blank field: %s" % field
 
 def mapped_line(line, line_mappings):
+    """
+    applies mapping to the given line.
+    """
     rawtext = {}
-    data    = {}
+    data = {}
 
     for col, raw_value in enumerate(line):
         column_mapping = line_mappings[col]
-        if column_mapping is None: raise 'Wrong number of columns'
+        if not column_mapping:
+            raise 'Wrong number of columns'
 
-        if column_mapping.get('do_not_capture'): continue
+        if column_mapping.get('do_not_capture'):
+            continue
 
         if 'standard_mapping' in column_mapping:
-          column_mapping = standard_mapping(column_mapping['standard_mapping'], column_mapping)
+            column_mapping = standard_mapping(column_mapping['standard_mapping'], column_mapping)
 
-        rawtext_column_name = (column_mapping.get('rawtext_name') or column_mapping.get('column')).lower()
+        rawtext_column_name = (column_mapping.get('rawtext_name') or
+                               column_mapping['column']).lower()
 
         for encoding in column_mapping.get('decode', []):
             raw_value = decode_raw_value(raw_value, encoding)
@@ -96,15 +145,18 @@ def mapped_line(line, line_mappings):
             value = mapped_value(original_value, field_mapping)
 
             validations = field_mapping.get('validates')
-            if validations: apply_validations_on(field_mapping['field'], value, validations)
+            if validations:
+                apply_validations_on(field_mapping['field'], value, validations)
 
-            if isblank(value) and not(field_mapping.get('join')): continue
+            if isblank(value) and not field_mapping.get('join'):
+                continue
 
             field = field_mapping.get('field')
 
             data[field] = data.get(field, {})
             data[field]['values'] = data[field].get('values', [])
-            if not('compact' in data[field]): data[field]['compact'] = True
+            if 'compact' not in data[field]:
+                data[field]['compact'] = True
 
             if field_mapping.get('order'):
                 data[field]['join'] = data[field].get('join', field_mapping.get('join'))
@@ -138,7 +190,7 @@ def mapped_line(line, line_mappings):
 
     return attributes
 
-standard_mappings_yaml = """
+STANDARD_MAPPINGS_YAML = """
 forenames:
   column: forenames
   rawtext_name: forenames
@@ -147,11 +199,16 @@ forenames:
 #    clean: :name
 """
 
-standard_mappings = yaml.load(standard_mappings_yaml, Loader=yaml.FullLoader)
+STANDARD_MAPPINGS = yaml.load(STANDARD_MAPPINGS_YAML, Loader=yaml.FullLoader)
 
 def standard_mapping(mapping_name, column_mapping):
-    mapping = standard_mappings.get(mapping_name)
-    if not mapping: return None
+    """
+    Looks for a standard mapping matching the given name,
+    and merges it into the supplied column mapping.
+    """
+    mapping = STANDARD_MAPPINGS.get(mapping_name)
+    if not mapping:
+        return None
 
     result = copy.copy(mapping)
 
@@ -164,7 +221,7 @@ def standard_mapping(mapping_name, column_mapping):
 
     return result
 
-mapping_yaml = """
+MAPPING_YAML = """
 - standard_mapping: forenames
 - column: hospital
   mappings:
@@ -174,12 +231,12 @@ mapping_yaml = """
       : 'RGT01'
 """
 
-mapping = yaml.load(mapping_yaml, Loader=yaml.FullLoader)
+MAPPING = yaml.load(MAPPING_YAML, Loader=yaml.FullLoader)
 
-lines = [
+LINES = [
     [' bob ', 'Addenbrookes Hospital'],
     ['gob', 'Peterborough Hospital']
 ]
 
-for line in lines:
-    print(mapped_line(line, mapping))
+for l in LINES:
+    print(mapped_line(l, MAPPING))
